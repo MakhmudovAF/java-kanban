@@ -32,4 +32,41 @@ public class TaskManager {
     private int generateId() {
         return nextId++;
     }
+
+    // --- Task ---
+    public List<Task> getTasks() {
+        return List.copyOf(tasks.values());
+    }
+
+    public boolean clearTasks() {
+        tasks.clear();
+        return true;
+    }
+
+    public Task getTask(int id) {
+        return tasks.get(id);
+    }
+
+    public Task createTask(Task task) {
+        int id = generateId();
+        task.setId(id);
+        tasks.put(id, task);
+        return task;
+    }
+
+    public Task updateTask(Task task) {
+        if (task.getId() <= 0 || !tasks.containsKey(task.getId())) {
+            return null;
+        }
+
+        Task existing = tasks.get(task.getId());
+        existing.setTitle(task.getTitle());
+        existing.setDescription(task.getDescription());
+        existing.setStatus(task.getStatus());
+        return existing;
+    }
+
+    public boolean removeTask(int id) {
+        return tasks.remove(id) != null;
+    }
 }
