@@ -15,6 +15,11 @@ public class Epic extends Task {
         this.subtaskIds = new ArrayList<>();
     }
 
+    public Epic(int id, String title, String description) {
+        super(id, title, description);
+        this.subtaskIds = new ArrayList<>();
+    }
+
     /**
      * Возвращает копию списка ID подзадач.
      * @return неизменяемый список идентификаторов
