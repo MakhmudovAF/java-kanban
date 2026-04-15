@@ -122,4 +122,8 @@ public class InMemoryHistoryManager implements HistoryManager {
         }
         return result;
     }
+
+    public boolean contains(int id) {
+        return nodeMap.containsKey(id);
+    }
 }
