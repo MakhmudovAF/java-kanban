@@ -18,6 +18,13 @@ public class Task {
         this.status = Status.NEW;
     }
 
+    public Task(int id ,String title, String description) {
+        this.id = id;
+        this.title = title;
+        this.description = description != null ? description : "";
+        this.status = Status.NEW;
+    }
+
     public int getId() {
         return id;
     }
