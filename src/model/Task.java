@@ -18,7 +18,7 @@ public class Task {
         this.status = Status.NEW;
     }
 
-    public Task(int id ,String title, String description) {
+    public Task(int id, String title, String description) {
         this.id = id;
         this.title = title;
         this.description = description != null ? description : "";
@@ -76,6 +76,10 @@ public class Task {
     @Override
     public int hashCode() {
         return Objects.hashCode(id);
+    }
+
+    public Type getType() {
+        return Type.TASK;
     }
 
     @Override

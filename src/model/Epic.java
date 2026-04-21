@@ -56,6 +56,10 @@ public class Epic extends Task {
         subtaskIds.clear();
     }
 
+    public Type getType() {
+        return Type.EPIC;
+    }
+
     @Override
     public String toString() {
         return "Epic{" +

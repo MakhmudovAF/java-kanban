@@ -20,6 +20,10 @@ public class Subtask extends Task {
         return epicId;
     }
 
+    public Type getType() {
+        return Type.SUBTASK;
+    }
+
     @Override
     public String toString() {
         return "Subtask{" +
