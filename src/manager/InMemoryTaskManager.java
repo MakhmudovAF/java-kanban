@@ -15,14 +15,14 @@ import java.util.Map;
  * Управляет созданием, хранением, обновлением и удалением задач всех типов.
  */
 public class InMemoryTaskManager implements TaskManager {
-    private int nextId;
+    protected int nextId;
 
     // Хранилища задач по типам
-    private final Map<Integer, Task> tasks;
-    private final Map<Integer, Epic> epics;
-    private final Map<Integer, Subtask> subtasks;
+    protected final Map<Integer, Task> tasks;
+    protected final Map<Integer, Epic> epics;
+    protected final Map<Integer, Subtask> subtasks;
 
-    private final HistoryManager historyManager;
+    protected final HistoryManager historyManager;
 
     public InMemoryTaskManager() {
         this.nextId = 1;
@@ -263,7 +263,7 @@ public class InMemoryTaskManager implements TaskManager {
         return historyManager.getHistory();
     }
 
-    private boolean updateEpicStatus(Epic epic) {
+    protected boolean updateEpicStatus(Epic epic) {
         if (epic == null) return false;
 
         List<Integer> epicSubtaskIds = epic.getSubtaskIds();
