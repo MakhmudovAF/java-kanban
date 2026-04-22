@@ -1,6 +1,7 @@
 package manager;
 
 import java.io.File;
+import java.nio.file.Path;
 
 public class Managers {
     private Managers() {
@@ -16,10 +17,10 @@ public class Managers {
 
     /**
      * Возвращает файлового менеджера задач с автосохранением.
-     * @param file файл для сохранения данных
+     * @param filePath путь к файлу для сохранения данных
      */
-    public static TaskManager getDefault(File file) {
-        return new FileBackedTaskManager(file);
+    public static TaskManager getDefault(Path filePath) {
+        return new FileBackedTaskManager(filePath);
     }
 
     /**
