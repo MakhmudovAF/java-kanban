@@ -2,9 +2,14 @@ package manager;
 
 import model.*;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Менеджер задач с автосохранением в файл.
@@ -14,11 +19,11 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
     private static final String HEADER = "id,type,name,status,description,epic";
     private static final String DELIMITER = ",";
 
-    private final File file;
+    private final Path filePath;
 
-    public FileBackedTaskManager(File file) {
+    public FileBackedTaskManager(Path filePath) {
         super();
-        this.file = file;
+        this.filePath = filePath;
     }
 
     /**
@@ -26,56 +31,65 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
      * @throws ManagerSaveException при ошибке ввода-вывода
      */
     public void save() {
-        try (BufferedWriter writer = new BufferedWriter(
-                new FileWriter(file, StandardCharsets.UTF_8))) {
+        try {
+            // Собираем все строки для записи
+            List<String> lines = new ArrayList<>();
+            lines.add(HEADER);
 
-            // Записываем заголовок
-            writer.write(HEADER);
-            writer.newLine();
-
-            // Записываем простые задачи
+            // Добавляем простые задачи
             for (Task task : tasks.values()) {
-                writer.write(toString(task));
-                writer.newLine();
+                lines.add(toString(task));
             }
 
-            // Записываем эпики
+            // Добавляем эпики
             for (Epic epic : epics.values()) {
-                writer.write(toString(epic));
-                writer.newLine();
+                lines.add(toString(epic));
             }
 
-            // Записываем подзадачи
+            // Добавляем подзадачи
             for (Subtask subtask : subtasks.values()) {
-                writer.write(toString(subtask));
-                writer.newLine();
+                lines.add(toString(subtask));
             }
 
+            Path parentDir = filePath.getParent();
+            if (parentDir == null) {
+                parentDir = Paths.get(".");
+            }
+
+            Path tempFile = Files.createTempFile(filePath.getParent(), "task-manager-temp", ".csv");
+            try {
+                Files.write(tempFile, lines, StandardCharsets.UTF_8);
+                Files.move(tempFile, filePath,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException e) {
+                Files.deleteIfExists(tempFile);
+                throw e;
+            }
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка сохранения в файл: " + file.getPath(), e);
+            throw new ManagerSaveException("Ошибка сохранения в файл: " + filePath, e);
         }
     }
 
     /**
      * Загружает состояние менеджера из файла.
-     * @param file файл с данными
+     * @param filePath путь к файлу с данными
      * @return новый экземпляр FileBackedTaskManager с восстановленными данными
      * @throws ManagerSaveException при ошибке чтения или некорректном формате
      */
-    public static FileBackedTaskManager loadFromFile(File file) {
-        FileBackedTaskManager manager = new FileBackedTaskManager(file);
+    public static FileBackedTaskManager loadFromFile(Path filePath) {
+        FileBackedTaskManager manager = new FileBackedTaskManager(filePath);
 
-        if (!file.exists() || file.length() == 0) {
+        if (!Files.exists(filePath) || isFileEmpty(filePath)) {
             return manager; // Пустой менеджер для нового файла
         }
 
         try {
-            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            String[] lines = content.split("\\r?\\n");
+            List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
 
             // Пропускаем заголовок, начинаем с индекса 1
-            for (int i = 1; i < lines.length; i++) {
-                String line = lines[i].trim();
+            for (int i = 1; i < lines.size(); i++) {
+                String line = lines.get(i).trim();
                 if (line.isEmpty()) continue;
 
                 Task task = fromString(line);
@@ -107,12 +121,23 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
             }
 
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка чтения файла: " + file.getPath(), e);
+            throw new ManagerSaveException("Ошибка чтения файла: " + filePath, e);
         } catch (IllegalArgumentException e) {
-            throw new ManagerSaveException("Некорректный формат файла: " + file.getPath(), e);
+            throw new ManagerSaveException("Некорректный формат файла: " + filePath, e);
         }
 
         return manager;
+    }
+
+    /**
+     * Проверяет, пуст ли файл.
+     */
+    private static boolean isFileEmpty(Path filePath) {
+        try {
+            return Files.size(filePath) == 0;
+        } catch (IOException e) {
+            return true;
+        }
     }
 
     /**
@@ -316,9 +341,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
     public static void main(String[] args) {
         // Создаём временный файл для демонстрации
-        File tempFile;
+        Path tempFile;
         try {
-            tempFile = File.createTempFile("task-manager", ".csv");
+            tempFile = Files.createTempFile("task-manager", ".csv");
         } catch (IOException e) {
             System.err.println("Не удалось создать временный файл");
             return;
@@ -337,8 +362,17 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         Subtask sub2 = manager.createSubtask(new Subtask("Пригласить спикеров", "5 ключевых докладчиков", epic.getId()));
 
         System.out.println("\n=== Проверка сохранения ===");
-        System.out.println("Файл сохранён: " + tempFile.getAbsolutePath());
-        System.out.println("Размер файла: " + tempFile.length() + " байт");
+        System.out.println("Файл сохранён: " + tempFile.toAbsolutePath());
+        try {
+            System.out.println("Размер файла: " + Files.size(tempFile) + " байт");
+            System.out.println("Содержимое файла:");
+            List<String> content = Files.readAllLines(tempFile, StandardCharsets.UTF_8);
+            for (String line : content) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            System.err.println("Не удалось прочитать файл: " + e.getMessage());
+        }
 
         // Просматриваем задачи для добавления в историю
         manager.getTask(task1.getId());
@@ -362,7 +396,13 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         System.out.println("История просмотров: " + loadedManager.getHistory().size() + " записей");
 
         // Очищаем временный файл
-        tempFile.delete();
+        try {
+            Files.deleteIfExists(tempFile);
+            System.out.println("\n=== Временный файл удалён ===");
+        } catch (IOException e) {
+            System.err.println("Не удалось удалить временный файл: " + e.getMessage());
+        }
+
         System.out.println("\n=== Демонстрация завершена ===");
     }
 }
