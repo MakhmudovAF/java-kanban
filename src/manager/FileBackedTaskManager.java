@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +18,7 @@ import java.util.List;
  * Наследуется от InMemoryTaskManager для повторного использования логики.
  */
 public class FileBackedTaskManager extends InMemoryTaskManager {
-    private static final String HEADER = "id,type,name,status,description,epic";
+    private static final String HEADER = "id,type,name,status,description,start,duration,epic";
     private static final String DELIMITER = ",";
 
     private final Path filePath;
@@ -107,6 +109,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                     manager.epics.put(task.getId(), (Epic) task);
                 } else {
                     manager.tasks.put(task.getId(), task);
+                    manager.prioritizedTasks.add(task);
                 }
 
                 // Обновляем nextId, чтобы новые задачи не конфликтовали
@@ -117,7 +120,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
             // Восстанавливаем статусы эпиков после загрузки подзадач
             for (Epic epic : manager.epics.values()) {
-                manager.updateEpicStatus(epic);
+                manager.updateEpic(epic);
             }
 
         } catch (IOException e) {
@@ -159,7 +162,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
 
         sb.append(escape(task.getTitle())).append(DELIMITER);
         sb.append(task.getStatus()).append(DELIMITER);
-        sb.append(escape(task.getDescription()));
+        sb.append(escape(task.getDescription())).append(DELIMITER);
+        sb.append(task.getStartTime() != null ? task.getStartTime().toString() : "").append(DELIMITER);
+        sb.append(task.getDuration() != null ? task.getDuration().toMinutes() : "");
 
         // Для подзадач добавляем ID эпика
         if (task instanceof Subtask) {
@@ -196,12 +201,16 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
         String title = unescape(parts[2]);
         Status status = Status.valueOf(parts[3].trim().toUpperCase());
         String description = unescape(parts[4]);
+        LocalDateTime startTime = parts[5].isEmpty() ? null : LocalDateTime.parse(parts[5]);
+        Duration duration = parts[6].isEmpty() ? null : Duration.ofMinutes(Long.parseLong(parts[6]));
 
         switch (type) {
             case TASK:
                 Task task = new Task(title, description);
                 task.setId(id);
                 task.setStatus(status);
+                task.setStartTime(startTime);
+                task.setDuration(duration);
                 return task;
             case EPIC:
                 Epic epic = new Epic(title, description);
@@ -209,14 +218,16 @@ public class FileBackedTaskManager extends InMemoryTaskManager {
                 epic.setStatus(status);
                 return epic;
             case SUBTASK:
-                if (parts.length < 6) {
+                if (parts.length < 8) {
                     throw new IllegalArgumentException("Подзадача без epicId: " + value);
                 }
 
-                int epicId = Integer.parseInt(parts[5].trim());
+                int epicId = Integer.parseInt(parts[7].trim());
                 Subtask subtask = new Subtask(title, description, epicId);
                 subtask.setId(id);
                 subtask.setStatus(status);
+                subtask.setStartTime(startTime);
+                subtask.setDuration(duration);
                 return subtask;
             default:
                 throw new IllegalArgumentException("Неизвестный тип задачи: " + type);
