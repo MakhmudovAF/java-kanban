@@ -1,5 +1,7 @@
 package model;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +11,7 @@ import java.util.List;
  */
 public class Epic extends Task {
     private final List<Integer> subtaskIds;
+    private LocalDateTime endTime;
 
     public Epic(String title, String description) {
         super(title, description);
@@ -58,6 +61,35 @@ public class Epic extends Task {
 
     public Type getType() {
         return Type.EPIC;
+    }
+
+    @Override
+    public LocalDateTime getEndTime() {
+        return endTime;
+    }
+
+    public void updateEpicEndTime(List<Subtask> subtasks) {
+        if (subtasks == null || subtasks.isEmpty()) {
+            startTime = null;
+            duration = null;
+            endTime = null;
+            return;
+        }
+
+        List<Subtask> valid = subtasks.stream()
+                .filter(subtask -> subtask.getStartTime() != null && subtask.getEndTime() != null)
+                .toList();
+
+        if (valid.isEmpty()) {
+            startTime = null;
+            duration = null;
+            endTime = null;
+            return;
+        }
+
+        startTime = valid.stream().map(Subtask::getStartTime).min(LocalDateTime::compareTo).get();
+        endTime = valid.stream().map(Subtask::getEndTime).max(LocalDateTime::compareTo).get();
+        duration = Duration.between(startTime, endTime);
     }
 
     @Override
