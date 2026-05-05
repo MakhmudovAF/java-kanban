@@ -1,5 +1,6 @@
 package manager;
 
+import exception.ManagerSaveException;
 import model.*;
 
 import java.io.IOException;
